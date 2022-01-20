@@ -1,6 +1,8 @@
 package com.compose.calculator
 
+import android.content.Context
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -16,6 +18,7 @@ import androidx.compose.ui.Alignment.Companion.End
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -23,8 +26,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.text.isDigitsOnly
 import com.compose.calculator.ui.theme.CalculatorTheme
 import com.compose.calculator.ui.theme.Gray200
+import com.compose.domain.Calculator
+
+private val calculator = Calculator()
 
 @ExperimentalFoundationApi
 class ComposeMainActivity : ComponentActivity() {
@@ -53,7 +60,7 @@ fun CalculatorContainer() {
                 .fillMaxWidth()
                 .weight(3f)
                 .testTag(stringResource(R.string.tag_statement)),
-            text = statement,
+            text = observeEmptyString(statement),
             textAlign = TextAlign.End,
             fontSize = 24.sp
         )
@@ -67,8 +74,11 @@ fun CalculatorContainer() {
         IconButton(
             modifier = Modifier
                 .align(End)
-                .padding(end = 60.dp),
-            onClick = { /*TODO*/ },
+                .padding(end = 60.dp)
+                .testTag("buttonCancel"),
+            onClick = {
+                statement = deleteLastElement(statement)
+            },
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_baseline_keyboard_backspace_24),
@@ -81,68 +91,56 @@ fun CalculatorContainer() {
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 36.dp),
-            cells = GridCells.Fixed(4)
+            cells = GridCells.Fixed(4),
         ) {
             items(count = 16) { index ->
                 when (index) {
-                    0 -> CalculatorButton(
-                        stringResource(R.string.calculator_7), Color.Black
-                    ) {
+                    0 -> OperandButton(stringResource(R.string.calculator_7), statement) {
                         statement = it
                     }
-                    1 -> CalculatorButton(stringResource(R.string.calculator_8), Color.Black) {
+                    1 -> OperandButton(stringResource(R.string.calculator_8), statement) {
                         statement = it
                     }
-                    2 -> CalculatorButton(stringResource(R.string.calculator_9), Color.Black) {
+                    2 -> OperandButton(stringResource(R.string.calculator_9), statement) {
                         statement = it
                     }
-                    3 -> CalculatorButton(
-                        stringResource(R.string.calculator_divide),
-                        MaterialTheme.colors.primary
-                    ) {
+                    3 -> OperatorButton(stringResource(R.string.calculator_divide), statement) {
                         statement = it
                     }
-                    4 -> CalculatorButton(stringResource(R.string.calculator_4), Color.Black) {
+                    4 -> OperandButton(stringResource(R.string.calculator_4), statement) {
                         statement = it
                     }
-                    5 -> CalculatorButton(stringResource(R.string.calculator_5), Color.Black) {
+                    5 -> OperandButton(stringResource(R.string.calculator_5), statement) {
                         statement = it
                     }
-                    6 -> CalculatorButton(stringResource(R.string.calculator_6), Color.Black) {
+                    6 -> OperandButton(stringResource(R.string.calculator_6), statement) {
                         statement = it
                     }
-                    7 -> CalculatorButton(
-                        stringResource(R.string.calculator_multiply),
-                        MaterialTheme.colors.primary
-                    ) {
+                    7 -> OperatorButton(stringResource(R.string.calculator_multiply), statement) {
                         statement = it
                     }
-                    8 -> CalculatorButton(stringResource(R.string.calculator_1), Color.Black) {
+                    8 -> OperandButton(stringResource(R.string.calculator_1), statement) {
                         statement = it
                     }
-                    9 -> CalculatorButton(stringResource(R.string.calculator_2), Color.Black) {
+                    9 -> OperandButton(stringResource(R.string.calculator_2), statement) {
                         statement = it
                     }
-                    10 -> CalculatorButton(stringResource(R.string.calculator_3), Color.Black) {
+                    10 -> OperandButton(stringResource(R.string.calculator_3), statement) {
                         statement = it
                     }
-                    11 -> CalculatorButton(
-                        stringResource(R.string.calculator_minus),
-                        MaterialTheme.colors.primary
-                    ) {
+                    11 -> OperatorButton(stringResource(R.string.calculator_minus), statement) {
                         statement = it
                     }
-                    12 -> CalculatorButton(stringResource(R.string.calculator_0), Color.Black) {
+                    12 -> OperandButton(stringResource(R.string.calculator_0), statement) {
                         statement = it
                     }
-                    13 -> CalculatorButton("", MaterialTheme.colors.primary) {
+                    13 -> OperandButton("", statement) {
                         statement = it
                     }
-                    14 -> EqualButton()
-                    15 -> CalculatorButton(
-                        stringResource(R.string.calculator_plus),
-                        MaterialTheme.colors.primary
-                    ) {
+                    14 -> EqualButton(LocalContext.current, statement) {
+                        statement = it
+                    }
+                    15 -> OperatorButton(stringResource(R.string.calculator_plus), statement) {
                         statement = it
                     }
                 }
@@ -152,12 +150,15 @@ fun CalculatorContainer() {
 }
 
 @Composable
-fun EqualButton() {
+fun EqualButton(context: Context, statement: String, onClick: (String) -> Unit) {
     Button(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(color = MaterialTheme.colors.primary),
-        onClick = { /*TODO*/ },
+            .background(color = MaterialTheme.colors.primary)
+            .testTag("ButtonEqual"),
+        onClick = {
+            onClick(calculateStatement(context, statement))
+        },
     ) {
         Text(
             text = stringResource(id = R.string.calculator_equals),
@@ -168,19 +169,90 @@ fun EqualButton() {
 }
 
 @Composable
-fun CalculatorButton(text: String, color: Color, onClick: (String) -> Unit) {
+fun OperandButton(input: String, statement: String, onClick: (String) -> Unit) {
     Text(
         modifier = Modifier
             .height(52.dp)
-            .testTag("button$text")
+            .testTag("button$input")
             .clickable(
-                onClick = { onClick(text) }
+                onClick = {
+                    val updatedStatement = updateCalculateView(input, checkZeroState(statement))
+                    onClick(updatedStatement)
+                }
             ),
-        text = text,
+        text = input,
         textAlign = TextAlign.Center,
         fontSize = 28.sp,
-        color = color,
+        color = Color.Black,
     )
+}
+
+@Composable
+fun OperatorButton(input: String, statement: String, onClick: (String) -> Unit) {
+    Text(
+        modifier = Modifier
+            .height(52.dp)
+            .testTag("button$input")
+            .clickable(
+                onClick = {
+                    val updatedStatement = checkWithOperand(checkZeroState(statement), input)
+                    onClick(updatedStatement)
+                }
+            ),
+        text = input,
+        textAlign = TextAlign.Center,
+        fontSize = 28.sp,
+        color = MaterialTheme.colors.primary,
+    )
+}
+
+private fun checkWithOperand(statement: String, operator: String): String {
+    return if (statement.isNotEmpty()) updateCalculateView(operator, statement)
+    else ""
+}
+
+private fun checkZeroState(statement: String): String {
+    return if (statement == "0") ""
+    else statement
+}
+
+private fun updateCalculateView(input: String, statement: String): String {
+    return statement.trim().addOperandToNumber(input)
+}
+
+private fun String.addOperandToNumber(input: String): String {
+    val baseStatement = this@addOperandToNumber
+    return if (baseStatement.isEmptyOrDigit(input)) {
+        "$baseStatement$input"
+    } else {
+        "$baseStatement $input"
+    }
+}
+
+private fun String.isEmptyOrDigit(input: String) = this.isEmpty() ||
+        (this.last().isDigit() && input.isDigitsOnly())
+
+private fun calculateStatement(context: Context, statement: String): String {
+    var result = "0"
+    runCatching {
+        result = calculator.calculate(replaceOperator(statement)).toString()
+    }.getOrElse { e ->
+        Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+    }
+    return result
+}
+
+private fun replaceOperator(statement: String): String {
+    return statement
+        .replace("÷", "/")
+        .replace("×", "*")
+}
+
+private fun deleteLastElement(statement: String) = statement.dropLast(1).trim()
+
+private fun observeEmptyString(statement: String?): String {
+    return if (statement.isNullOrEmpty()) "0"
+    else statement
 }
 
 @ExperimentalFoundationApi
