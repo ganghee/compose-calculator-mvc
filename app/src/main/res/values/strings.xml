@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Calculator</string>
+    <string name="app_name">com.compose.domain.Calculator</string>
     <string name="calculator_0">0</string>
     <string name="calculator_1">1</string>
     <string name="calculator_2">2</string>
